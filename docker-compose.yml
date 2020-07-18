@@ -1,0 +1,23 @@
+version: '3.7'
+services:
+  web:
+    image: product-sale
+    depends_on:
+      - postgres
+    tty: true
+    ports: 
+      - "4000:4000"
+  postgres:
+    image: postgres:10
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=express
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - express-postgres-db-data:/var/lib/postgresql/data/pgdata
+    ports:
+      - '5432:5432'
+volumes:
+  express-postgres-db-data:
+

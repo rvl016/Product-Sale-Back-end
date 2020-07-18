@@ -1,0 +1,9 @@
+.vscode/
+node_modules/
+build/
+tmp/
+temp/
+.env
+.eslintrc
+.eslintignore
+dist
