@@ -6,12 +6,16 @@
   "scripts": {
     "test": "npm test",
     "lint": "eslint ./src --ext .ts",
-    "start": "nodemon --exec ts-node src/app.ts"
+    "start": "nodemon --exec ts-node src/app.ts",
+    "build": "tsc -b"
   },
   "author": "Ravi do Valle Luz",
   "license": "ISC",
   "dependencies": {
+    "class-validator": "^0.12.2",
+    "cors": "^2.8.5",
     "express": "^4.17.1",
+    "morgan": "^1.10.0",
     "pg": "^8.3.0",
     "typeorm": "^0.2.25"
   },
