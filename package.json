@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npm test",
     "lint": "eslint ./src --ext .ts",
-    "start": "nodemon --exec ts-node src/index.ts"
+    "start": "nodemon --exec ts-node src/app.ts"
   },
   "author": "Ravi do Valle Luz",
   "license": "ISC",
