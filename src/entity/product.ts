@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn,
-  BeforeInsert, BeforeUpdate, } from 'typeorm';
+  BeforeInsert, BeforeUpdate, AfterLoad, } from 'typeorm';
 import { Min, Matches, validateOrReject, IsDefined } from 'class-validator';
 
 @Entity( "products")
@@ -32,6 +32,7 @@ export default class Product {
     scale: 2,
     nullable: false
   })
+  @Min( 0.0)
   @IsDefined()
   price: number;
 
@@ -54,5 +55,10 @@ export default class Product {
   @BeforeUpdate()
   async validate() {
     await validateOrReject( this);
+  }
+
+  @AfterLoad()
+  convertPriceToFloat() {
+    this.price = parseFloat( this.price as any);
   }
 }

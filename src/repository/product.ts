@@ -37,7 +37,7 @@ export default class ProductRepository extends AbstractRepository<Product> {
     const product = await this.manager.findOne( Product, id);
     if (! product)
       return null;
-    this.manager.merge( Product, product, { is_active: false });
+    product.is_active = false;
     return await this.manager.save( Product, product);
   }
 
@@ -69,8 +69,9 @@ export default class ProductRepository extends AbstractRepository<Product> {
   }
 
   private updateAndActivate( product: Product, data: Object) {
-    data["is_active"] = true;
-    this.manager.merge( Product, product, data);
+    this.manager.merge( Product, product, { 
+      ...data, is_active: true 
+    });
     return this.manager.save( Product, product);
   }
 }
