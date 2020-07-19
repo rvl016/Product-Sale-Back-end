@@ -16,7 +16,7 @@ export default class Order {
     nullable: false
   })
   @IsDefined()
-  @Min( 0)
+  @Min( 1)
   quantity: number;
 
   @ManyToOne(

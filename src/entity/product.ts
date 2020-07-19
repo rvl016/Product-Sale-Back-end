@@ -45,7 +45,8 @@ export default class Product {
 
   @Column( {
     type: "boolean",
-    default: true
+    default: true,
+    nullable: false
   })
   is_active: boolean;
 

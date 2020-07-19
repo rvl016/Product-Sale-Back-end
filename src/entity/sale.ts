@@ -19,6 +19,13 @@ export default class Sale {
   @Matches( /\d{9}-\d{2}/)
   client_cpf: String;
 
+  @Column( {
+    type: "decimal",
+    precision: 10,
+    scale: 2
+  })
+  sale_price: number;
+
   @OneToMany(
     type => Order,
     order => order.sale_id
