@@ -1,19 +1,21 @@
-import { BaseEntity, Entity, Column, 
-  PrimaryGeneratedColumn, OneToMany } from 'typeorm';
-import { Matches } from 'class-validator';
+import { Entity, Column, PrimaryGeneratedColumn, 
+  OneToMany, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Matches, validateOrReject, IsDefined } from 'class-validator';
 
-import { Order } from './order';
+import Order from './order';
 
 @Entity( "sales")
-export class Sale extends BaseEntity {
+export default class Sale {
 
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column( {
     type: "char",
-    length: 12
+    length: 12,
+    nullable: false
   })
+  @IsDefined()
   @Matches( /\d{9}-\d{2}/)
   client_cpf: String;
 
@@ -23,5 +25,10 @@ export class Sale extends BaseEntity {
   )
   orders: Order[];
 
+  @BeforeInsert()
+  @BeforeUpdate()
+  async validate() {
+    await validateOrReject( this);
+  }
 }
 

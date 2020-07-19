@@ -1,12 +1,12 @@
-import { BaseEntity, Entity, Column, 
-  PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
-import { Min } from 'class-validator';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne,
+  BeforeInsert, BeforeUpdate, } from 'typeorm';
+import { Min, validateOrReject, IsDefined } from 'class-validator';
 
-import { Sale } from './sale';
-import { Product } from './product';
+import Sale from './sale';
+import Product from './product';
 
 @Entity( "orders")
-export class Order extends BaseEntity {
+export default class Order {
 
   @PrimaryGeneratedColumn()
   id: number;
@@ -15,6 +15,7 @@ export class Order extends BaseEntity {
     type: "integer",
     nullable: false
   })
+  @IsDefined()
   @Min( 0)
   quantity: number;
 
@@ -32,6 +33,11 @@ export class Order extends BaseEntity {
   )
   product_id: number;
 
+  @BeforeInsert()
+  @BeforeUpdate()
+  async validate() {
+    await validateOrReject( this);
+  }
 }
 
 
