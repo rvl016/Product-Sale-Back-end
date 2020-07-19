@@ -7,7 +7,7 @@ export default class ProductRepository extends AbstractRepository<Product> {
   async createAndSave( data: Object) {
     const db_product = await this.findByCode( data["code"]);
     if (db_product && ! db_product.is_active) 
-      return this.updateAndActivate( db_product, data);
+      return await this.updateAndActivate( db_product.id, data);
     const product = this.manager.create( Product, data);
     return await this.save( product);
   }
@@ -29,24 +29,18 @@ export default class ProductRepository extends AbstractRepository<Product> {
     const product = await this.manager.findOne( Product, id);
     if (! product || ! product.is_active)
       return null;
-    this.manager.merge( Product, product, data);
-    return await this.save( product);
+    return await this.catchErrors( this.updateRecord( id, data));
   }
 
   async delete( id: number) {
     const product = await this.manager.findOne( Product, id);
     if (! product)
       return null;
-    product.is_active = false;
-    return await this.manager.save( Product, product);
+    return await this.updateRecord( product.id, { is_active: false });
   }
 
   async save( product: Product) {
-    return await this.manager.save( Product, product).then( product => {
-      return {};
-    }).catch( error => { 
-      return { error }; 
-    });
+    return await this.catchErrors( this.unsafeSave( product));
   }
 
   async unsafeSave( product: Product) {
@@ -61,6 +55,15 @@ export default class ProductRepository extends AbstractRepository<Product> {
       .getMany();
   }
 
+  async changeQuantity( id: number, delta: number) {
+    return this.manager.createQueryBuilder( Product, "products").
+      where( "id = :id").
+      setParameters( { id }).update().
+      set( { quantity: () => "quantity + :delta" }).
+      setParameters( { delta }).
+      execute();
+  }
+
   private findByCode( code: String) {
     return this.manager.createQueryBuilder( Product, "products")
       .where( "code = :code")
@@ -68,10 +71,19 @@ export default class ProductRepository extends AbstractRepository<Product> {
       .getOne();
   }
 
-  private updateAndActivate( product: Product, data: Object) {
-    this.manager.merge( Product, product, { 
-      ...data, is_active: true 
-    });
-    return this.manager.save( Product, product);
+  private async updateAndActivate( id: number, data: Object) {
+    return await this.updateRecord( id, { ...data, is_active: true });
+  }
+
+  private async updateRecord( id: number, data: Object) {
+    return await this.manager.update( Product, id, data);
+  }
+
+  private async catchErrors( promise: Promise<any>) : Promise<Object> {
+    return await promise.then( result => {
+      return { };
+    }).catch( error => { 
+      return { error }; 
+    });    
   }
 }
