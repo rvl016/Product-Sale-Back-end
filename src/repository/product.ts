@@ -1,5 +1,4 @@
 import { EntityRepository, AbstractRepository } from "typeorm";
-import { EntityManager } from "typeorm";
 import Product from "../entity/product";
 
 @EntityRepository( Product)
@@ -48,6 +47,18 @@ export default class ProductRepository extends AbstractRepository<Product> {
     }).catch( error => { 
       return { error }; 
     });
+  }
+
+  async unsafeSave( product: Product) {
+    return this.manager.save( Product, product);
+  }
+
+  findManyByCodeWithLock( code: String[]) {
+    return this.manager.createQueryBuilder( Product, "products")
+      .setLock( "pessimistic_write")
+      .where( "code IN (:code)")
+      .setParameters( { code })
+      .getMany();
   }
 
   private findByCode( code: String) {
