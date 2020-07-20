@@ -22,7 +22,8 @@ export default class Sale {
   @Column( {
     type: "decimal",
     precision: 10,
-    scale: 2
+    scale: 2,
+    nullable: true
   })
   sale_price: number;
 
