@@ -47,10 +47,10 @@ export default class ProductRepository extends AbstractRepository<Product> {
     return this.manager.save( Product, product);
   }
 
-  findManyByCodeWithLock( code: String[]) {
+  findManyByCodeWithLock( codes: String[]) {
     return this.manager.createQueryBuilder( Product, "products")
-      .where( "code IN (:code)")
-      .setParameters( { code })
+      .where( "code IN (:...codes)")
+      .setParameters( { codes })
       .getMany();
   }
 
