@@ -17,7 +17,7 @@ export default class Sale {
   })
   @IsDefined()
   @Matches( /\d{9}-\d{2}/)
-  client_cpf: String;
+  customer_cpf: String;
 
   @Column( {
     type: "decimal",
