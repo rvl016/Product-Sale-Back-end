@@ -49,7 +49,6 @@ export default class ProductRepository extends AbstractRepository<Product> {
 
   findManyByCodeWithLock( code: String[]) {
     return this.manager.createQueryBuilder( Product, "products")
-      .setLock( "pessimistic_write")
       .where( "code IN (:code)")
       .setParameters( { code })
       .getMany();
