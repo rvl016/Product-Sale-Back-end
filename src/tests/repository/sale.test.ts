@@ -70,6 +70,17 @@ const sale2 = {
   }]
 }
 
+const saleImpossible = {
+  customer_cpf: "123456789-12",
+  products: [{
+    code: product1.code,
+    quantity: 9999
+  }, {
+    code: product3.code,
+    quantity: 3
+  }]
+}
+
 const products = [product1, product2, product3, product4];
 
 async function createProducts() {
@@ -103,6 +114,28 @@ describe( "SaleRepository createAndSave related", () => {
     expect( changed_products).toHaveLength( 2);
     expect( changed_products[0].quantity).toBe( product1.quantity - 1);
     expect( changed_products[1].quantity).toBe( product2.quantity - 3);
+  });
+
+  test( "Create sale with more products than in stock fails", async () => {
+    const saleRepository = getCustomRepository( SaleRepository);
+    const data = saleImpossible;
+    const result = await saleRepository.createAndSave( data);
+    expect( result).toHaveProperty( "error");
+    const sale = await saleRepository.find();
+    expect( sale).toHaveLength( 0);
+  });
+
+  test( "Create sale with more products than in stock produce no side effects",
+    async () => {
+    const productRepository = getCustomRepository( ProductRepository);
+    const saleRepository = getCustomRepository( SaleRepository);
+    const data = saleImpossible;
+    await saleRepository.createAndSave( data);
+    const products = await productRepository.findManyByCodeWithLock(
+      [product1.code, product2.code]);
+    expect( products).toHaveLength( 2);
+    expect( products[0].quantity).toBe( product1.quantity);
+    expect( products[1].quantity).toBe( product2.quantity);
   });
 });
 

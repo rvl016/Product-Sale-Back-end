@@ -36,19 +36,16 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   async delete( id: number) {
-    const sale = await this.manager.findOne( 
-      Sale, id, { relations: ['orders'] });
+    const sale = await this.getFullyJoinedSale( id);
     if (! sale)
       return null;
-    await this.revertOrdersRecordsFrom( sale);
-    return await this.manager.delete( Sale, sale.id);
+    return await this.makeDeleteTransaction( sale);
   }
 
   async update( id: number, data: Object) {
-    if (! await this.productsExistAndAreValid( data["products"]))
-      return { error: "Products data are invalid!" }
-    const sale = await this.manager.findOne( 
-      Sale, id, { relations: ['orders'] });
+    if (! this.hasProducts( data["products"]))
+      return { error: "A sale should have at least one Product!" }
+    const sale = await this.getFullyJoinedSale( id);
     if (! sale)
       return null;
     try {
@@ -59,12 +56,19 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   @Transaction()
+  private async makeDeleteTransaction( sale: Sale, 
+    @TransactionManager() manager?: EntityManager) {
+    await this.revertOrdersRecordsFrom( sale, manager);
+    return await manager.delete( Sale, sale.id);
+  }
+
+  @Transaction()
   private async modifySale( id: number, data: Object, sale: Sale,
     @TransactionManager() manager?: EntityManager) {
     await this.revertOrdersRecordsFrom( sale);
     await this.makeOrderRecords( data["products"], id);
-    this.manager.merge( Sale, sale, data);
-    return await this.manager.save( sale);
+    manager.merge( Sale, sale, data);
+    return await manager.save( sale);
   }
 
   @Transaction()
@@ -75,16 +79,18 @@ export default class SaleRepository extends AbstractRepository<Sale> {
     await this.setTotalValue( sale);
   }
 
-  private async makeSaleRecord( data: Object) : Promise<Sale> {
-    const sale = this.manager.create( Sale, data);
-    return await this.manager.save( sale);
+  private async makeSaleRecord( data: Object, 
+    manager: EntityManager = this.manager) : Promise<Sale> {
+    const sale = manager.create( Sale, data);
+    return await manager.save( sale);
   }
 
-  private async revertOrdersRecordsFrom( sale: Sale) {
+  private async revertOrdersRecordsFrom( sale: Sale, 
+    manager?: EntityManager) {
     const productRepository = getCustomRepository( ProductRepository);
     const orderRepository = getCustomRepository( OrderRepository);
     for (const order of sale.orders) {
-      await productRepository.changeQuantity( order.product_id, 
+      await productRepository.changeQuantity( order.product_id['id'], 
         order.quantity);
       await orderRepository.delete( order.id);
     }
@@ -94,6 +100,15 @@ export default class SaleRepository extends AbstractRepository<Sale> {
     const orderRepository = getCustomRepository( OrderRepository);
     return await orderRepository.createOrdersAndUpdateProducts(
       products_data, sale_id);
+  }
+
+  private getFullyJoinedSale( id: number) {
+    return this.manager.createQueryBuilder( Sale, "sales").
+      innerJoinAndSelect( "sales.orders", "orders").
+      innerJoinAndSelect( "orders.product_id", "products").
+      where( "sales.id = :id").
+      setParameters( { id }).
+      getOne()
   }
 
   private async setTotalValue( sale: Sale) {
