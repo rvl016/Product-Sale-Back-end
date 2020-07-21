@@ -9,7 +9,7 @@ export const handlePresence = (results: Object, res: Response) => {
 
 export const handleErrors = (results: Object, res: Response, 
   ok_code: number = 200) => {
-  if (results.hasOwnProperty( "errors"))
+  if (results.hasOwnProperty( "error"))
     res.statusCode = 406;
   else
     res.statusCode = ok_code;

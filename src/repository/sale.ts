@@ -1,4 +1,4 @@
-import { EntityRepository, AbstractRepository, Transaction, TransactionManager, getCustomRepository } from "typeorm";
+import { EntityRepository, AbstractRepository, Transaction, TransactionManager, getCustomRepository, EntityManager } from "typeorm";
 import Sale from "../entity/sale";
 import Order from "../entity/order";
 import Product from "../repository/product";
@@ -9,7 +9,7 @@ import OrderRepository from "./order";
 export default class SaleRepository extends AbstractRepository<Sale> {
   
   async createAndSave( data: Object) : Promise<Object> {
-    if (! this.productsExistAndAreValid( data["products"]))
+    if (! await this.productsExistAndAreValid( data["products"]))
       return { error: "Products data are invalid!" }
     try {
       await this.makeSale( data);
@@ -21,26 +21,34 @@ export default class SaleRepository extends AbstractRepository<Sale> {
 
   async find() {
     return await this.manager.createQueryBuilder( Sale, "sales").
+      leftJoinAndSelect( "sales.orders", "orders").
+      leftJoinAndSelect( "orders.product_id", "products").
       getMany();
   }
 
   async findOne( id: number) {
-    return await this.manager.findOne( Sale, id);
+    return await this.manager.createQueryBuilder( Sale, "sales"). 
+      where( "id = :id").
+      setParameters( { id }).
+      leftJoinAndSelect( "sales.orders", "orders").
+      leftJoinAndSelect( "orders.product_id", "products").
+      getOne();
   }
 
   async delete( id: number) {
-    const sale = await this.manager.findOne( Sale, id);
+    const sale = await this.manager.findOne( 
+      Sale, id, { relations: ['orders'] });
     if (! sale)
       return null;
-    const orders = sale.orders;
     await this.revertOrdersRecordsFrom( sale);
     return await this.manager.delete( Sale, sale.id);
   }
 
   async update( id: number, data: Object) {
-    if (! this.productsExistAndAreValid( data["products"]))
+    if (! await this.productsExistAndAreValid( data["products"]))
       return { error: "Products data are invalid!" }
-    const sale = await this.manager.findOne( Sale, id);
+    const sale = await this.manager.findOne( 
+      Sale, id, { relations: ['orders'] });
     if (! sale)
       return null;
     try {
@@ -51,7 +59,8 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   @Transaction()
-  private async modifySale( id: number, data: Object, sale: Sale) {
+  private async modifySale( id: number, data: Object, sale: Sale,
+    @TransactionManager() manager?: EntityManager) {
     await this.revertOrdersRecordsFrom( sale);
     await this.makeOrderRecords( data["products"], id);
     this.manager.merge( Sale, sale, data);
@@ -59,7 +68,8 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   @Transaction()
-  private async makeSale( data: Object) {
+  private async makeSale( data: Object, 
+    @TransactionManager() manager?: EntityManager) {
     const sale = await this.makeSaleRecord( data);
     await this.makeOrderRecords( data["products"], sale.id);
     await this.setTotalValue( sale);
@@ -73,10 +83,11 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   private async revertOrdersRecordsFrom( sale: Sale) {
     const productRepository = getCustomRepository( ProductRepository);
     const orderRepository = getCustomRepository( OrderRepository);
-    sale.orders.forEach( async order => {
-      productRepository.changeQuantity( order.product_id, order.quantity);
+    for (const order of sale.orders) {
+      await productRepository.changeQuantity( order.product_id, 
+        order.quantity);
       await orderRepository.delete( order.id);
-    });
+    }
   }
 
   private async makeOrderRecords( products_data: Object[], sale_id: number) {
@@ -93,37 +104,27 @@ export default class SaleRepository extends AbstractRepository<Sale> {
       .where( "sales.id = :sale_id")
       .setParameter( 'sale_id', sale.id)
       .getRawOne()
-    sale.sale_price = total_value;
-    this.manager.save( Sale, sale);
-  }
-
-  // Can't make this work out 
-  private async getSaleProducts( sale: Sale) : Promise<Product[]> {
-    return this.manager.createQueryBuilder( Product, "products").
-      setLock( "pessimistic_write").
-      innerJoinAndSelect( "orders.product_id", "products").
-      where( "orders.sale_id = :sale_id").
-      setParameters( { sale_id: sale.id }).
-      getMany();
+    await this.manager.update( Sale, sale, 
+      { 'sale_price': total_value.sum });
   }
 
   private async productsExistAndAreValid( products_data: Object[]) {
-    if (this.hasNoProducts( products_data) 
-      || ! await this.productsAreValid( products_data))
+    if (! this.hasProducts( products_data) 
+      || await this.productsAreValid( products_data))
       return false;
     return true;
   }
 
   private async productsAreValid( products_dict: Object[]) {
-    const productRepository = new ProductRepository();
+    const productRepository = getCustomRepository( ProductRepository);
     const db_products = await productRepository.find();
     const db_product_codes = db_products.map( product => product.code);
     return products_dict.map( product => product['code']).some( product => {
-      db_product_codes.find( code => code == product);
+      db_product_codes.find( code => code === product);
     });
   }
 
-  private hasNoProducts( products: any) {
+  private hasProducts( products: any) {
     try {
       return products.length > 0;
     } catch {

@@ -51,6 +51,7 @@ export default class Product {
   })
   is_active: boolean;
 
+  @BeforeUpdate()
   @BeforeInsert()
   @BeforeUpdate()
   async validate() {

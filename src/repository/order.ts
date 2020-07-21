@@ -18,24 +18,23 @@ export default class OrderRepository extends AbstractRepository<Order> {
     await this.manager.delete( Order, id);
   }
 
-  private getProductRecords( products_data: Object[]) {
+  private async getProductRecords( products_data: Object[]) {
     const product_codes = products_data.map( product => product["code"]);
     const product_repository = getCustomRepository( ProductRepository);
-    return product_repository.findManyByCodeWithLock( product_codes);
+    return await product_repository.findManyByCodeWithLock( product_codes);
   }
 
   private async createManyAndSave( products_data: any, 
     products: Product[], sale_id: number) {
     const product_repository = getCustomRepository( ProductRepository);
-    products.map( async product => {
+    for (const product of products) {
       const product_rec = products_data.find( p => p["code"] == product.code);
       const order = this.manager.create( Order, { sale_id, 
-        quantity: product_rec["quantity"], product_id: product.id });
+        quantity: product_rec.quantity, product_id: product.id });
       await this.manager.save( order);
       await product_repository.changeQuantity( 
-        product_rec.id, - order.quantity);
-      return order;
-    });
+        product.id, - order.quantity);
+    }
   }
 
 }

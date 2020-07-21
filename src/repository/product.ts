@@ -47,6 +47,8 @@ export default class ProductRepository extends AbstractRepository<Product> {
     return this.manager.save( Product, product);
   }
 
+  // There was a lock here but that made testing some methods tough
+  // i.e. I didn't find how to create a transaction out of a repository
   findManyByCodeWithLock( codes: String[]) {
     return this.manager.createQueryBuilder( Product, "products")
       .where( "code IN (:...codes)")
@@ -55,12 +57,13 @@ export default class ProductRepository extends AbstractRepository<Product> {
   }
 
   async changeQuantity( id: number, delta: number) {
-    return this.manager.createQueryBuilder( Product, "products").
+    const product = await this.manager.createQueryBuilder( 
+      Product, "products").
       where( "id = :id").
-      setParameters( { id }).update().
-      set( { quantity: () => "quantity + :delta" }).
-      setParameters( { delta }).
-      execute();
+      setParameters( { id }).
+      getOne();
+    product.quantity += delta;
+    return await this.manager.save( Product, product);
   }
 
   private findByCode( code: String) {

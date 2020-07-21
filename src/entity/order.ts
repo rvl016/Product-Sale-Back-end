@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne,
-  BeforeInsert, BeforeUpdate, } from 'typeorm';
+  BeforeInsert, BeforeUpdate, JoinColumn, } from 'typeorm';
 import { Min, validateOrReject, IsDefined } from 'class-validator';
 
 import Sale from './sale';
@@ -24,6 +24,7 @@ export default class Order {
     sale => sale.orders,
     { nullable: false }
   )
+  @JoinColumn( { name: 'sale_id' })
   sale_id: number;
 
   @ManyToOne(
@@ -31,6 +32,7 @@ export default class Order {
     product => product.id,
     { nullable: false }
   )
+  @JoinColumn( { name: 'product_id' })
   product_id: number;
 
   @BeforeInsert()

@@ -4,7 +4,40 @@ JSON API to manage products in stock and sales.
 
 ## Used Stack
 
-ExpressJS and TypeORM
+ExpressJS, TypeORM as Postgresql
+
+## Running
+
+### Tests
+
+```properties
+  cd "$(PROJECT_ROOT)"
+  chmod +x test_app.sh
+  ./test_app.sh
+```
+
+This will run a postgres container, but app locally (host).
+
+### Development Server
+
+```properties
+  cd "$(PROJECT_ROOT)"
+  chmod +x start_postgres_conteiner.sh
+  ./start_postgres_container.sh
+  npm start
+```
+
+This will run a postgres container, but app locally (host).
+
+### Production Server
+
+```properties
+  cd "$(PROJECT_ROOT)"
+  chmod +x make_container.sh
+  ./make_container.sh
+```
+
+This will run both postgres and server as containers.
 
 ## Endpoints
 
@@ -53,7 +86,6 @@ ExpressJS and TypeORM
 ```js
 {
   customer_cpf: "123456789-12", // Must be in this format
-  quantity: 2,
   products: [
     {
       code: "1010101010", // 10 digits
@@ -74,25 +106,3 @@ ExpressJS and TypeORM
 **DELETE on**
 
 /sales/:id
-
-## Running
-
-### Tests
-
-```properties
-  cd "$(PROJECT_ROOT)"
-  chmod +x test_app.sh
-  ./test_app.sh
-```
-
-This will run a postgres container, but app locally (host).
-
-### Server
-
-```properties
-  cd "$(PROJECT_ROOT)"
-  chmod +x make_container.sh
-  ./make_container.sh
-```
-
-This will run both postgres and server as containers.
