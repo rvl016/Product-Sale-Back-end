@@ -5,7 +5,6 @@ import { connectToDatabase } from "../../utils/connect_database";
 import ProductRepository from "../../repository/product";
 import OrderRepository from "../../repository/order";
 
-import Product from "../../entity/product";
 import Order from "../../entity/order";
 
 beforeEach( async () => {
@@ -19,7 +18,7 @@ afterEach( async () => {
 
 const product1 = {
   name: "x Product",
-  code: "1010101010",
+  code: "1110101010",
   price: 10,
   quantity: 2
 };
@@ -50,13 +49,13 @@ const products = [product1, product2, product3, product4];
 
 async function createProducts() {
   const productRepository = getCustomRepository( ProductRepository);
-  products.forEach( async product => {
+  for (const product of products) {
     await productRepository.createAndSave( product);
-  });
+  }
 }
 
 // How to test a method with pessimistic lock?
-xdescribe( "OrderRepository createAndSave related", () => {
+xdescribe( "SaleRepository createAndSave related", () => {
   test( "Create valid order works", async () => {
     const orderRepository = getCustomRepository( OrderRepository);
     const manager = getManager();
@@ -67,15 +66,15 @@ xdescribe( "OrderRepository createAndSave related", () => {
       code: product2.code,
       quantity: 3
     }];
-    const results = await orderRepository.
-      createOrdersAndUpdateProducts( data, 1);
-    expect( results).toBe( data);
+    await orderRepository.createOrdersAndUpdateProducts( data, 1);
     const orders = await manager.createQueryBuilder( 
       Order, "orders").getMany();
     expect( orders).toHaveLength( 2);
   });
 
   test( "Create valid order produce the expected side effects", async () => {
+    const productRepository = getCustomRepository( ProductRepository);
+    const orderRepository = getCustomRepository( OrderRepository);
     const data = [{
       code: product1.code,
       quantity: 1
@@ -83,13 +82,12 @@ xdescribe( "OrderRepository createAndSave related", () => {
       code: product2.code,
       quantity: 3
     }];
-    const changed_products = await getConnection().transaction( 
-      async entityManager => { 
-      await entityManager.getCustomRepository( OrderRepository).
-        createOrdersAndUpdateProducts( data, 1);
-      return await entityManager.getCustomRepository( ProductRepository).
-        findManyByCodeWithLock( [product1.code, product2.code]);
-    });
+    console.log( await productRepository.find());
+    await orderRepository.createOrdersAndUpdateProducts( data, 1);
+    console.log( await productRepository.find());
+    const changed_products = await productRepository.findManyByCodeWithLock(
+      [product1.code, product2.code]);
+    expect( changed_products).toHaveLength( 2);
     expect( changed_products[0].quantity).toBe( product1.quantity - 1);
     expect( changed_products[1].quantity).toBe( product2.quantity - 3);
   });

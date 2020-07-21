@@ -199,6 +199,41 @@ describe( "ProductRepository delete related", () => {
 });
 
 
+describe( "ProductRepository changeQuantity related", () => {
+  test( "ChangeQuantity works", async () => {
+    const data = {
+      name: "x Product",
+      code: "1010101010",
+      price: 10.50,
+      quantity: 2
+    };
+    const productRepository = getCustomRepository( ProductRepository);
+    await productRepository.createAndSave( data);
+    const products = await productRepository.find();
+    await productRepository.changeQuantity( products[0].id, -2);
+    const updated_product = await productRepository.findOne( products[0].id);
+    expect( updated_product.quantity).toEqual( 0);
+  });
 
+  test( "ChangeQuantity prevents negative quantities", async () => {
+    const data = {
+      name: "x Product",
+      code: "1010101010",
+      price: 10.50,
+      quantity: 2
+    };
+    const productRepository = getCustomRepository( ProductRepository);
+    await productRepository.createAndSave( data);
+    const products = await productRepository.find();
+    // Expect to throw won't work here
+    let message = false;
+    try {
+      await productRepository.changeQuantity( products[0].id, -3);
+    } catch (e) {
+      message = true;
+    }
+    expect( message).toBeTruthy()
+  });
+});
 
 
