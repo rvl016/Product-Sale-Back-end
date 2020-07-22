@@ -66,7 +66,7 @@ xdescribe( "SaleRepository createAndSave related", () => {
       code: product2.code,
       quantity: 3
     }];
-    await orderRepository.createOrdersAndUpdateProducts( data, 1);
+    await orderRepository.createOrdersAndUpdateProducts( data, 1, manager);
     const orders = await manager.createQueryBuilder( 
       Order, "orders").getMany();
     expect( orders).toHaveLength( 2);
@@ -75,6 +75,7 @@ xdescribe( "SaleRepository createAndSave related", () => {
   test( "Create valid order produce the expected side effects", async () => {
     const productRepository = getCustomRepository( ProductRepository);
     const orderRepository = getCustomRepository( OrderRepository);
+    const manager = getManager();
     const data = [{
       code: product1.code,
       quantity: 1
@@ -83,9 +84,9 @@ xdescribe( "SaleRepository createAndSave related", () => {
       quantity: 3
     }];
     console.log( await productRepository.find());
-    await orderRepository.createOrdersAndUpdateProducts( data, 1);
+    await orderRepository.createOrdersAndUpdateProducts( data, 1, manager);
     console.log( await productRepository.find());
-    const changed_products = await productRepository.findManyByCodeWithLock(
+    const changed_products = await productRepository.findManyByCode(
       [product1.code, product2.code]);
     expect( changed_products).toHaveLength( 2);
     expect( changed_products[0].quantity).toBe( product1.quantity - 1);

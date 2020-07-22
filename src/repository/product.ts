@@ -1,4 +1,4 @@
-import { EntityRepository, AbstractRepository } from "typeorm";
+import { EntityRepository, AbstractRepository, EntityManager } from "typeorm";
 import Product from "../entity/product";
 
 @EntityRepository( Product)
@@ -47,23 +47,30 @@ export default class ProductRepository extends AbstractRepository<Product> {
     return this.manager.save( Product, product);
   }
 
-  // There was a lock here but that made testing some methods tough
-  // i.e. I didn't find how to create a transaction out of a repository
-  findManyByCodeWithLock( codes: String[]) {
-    return this.manager.createQueryBuilder( Product, "products")
+  findManyByCodeWithLock( codes: String[], manager: EntityManager) {
+    return manager.createQueryBuilder( Product, "products")
+      .setLock( "pessimistic_write")
       .where( "code IN (:...codes)")
       .setParameters( { codes })
       .getMany();
   }
 
-  async changeQuantity( id: number, delta: number) {
-    const product = await this.manager.createQueryBuilder( 
+  async changeQuantity( id: number, delta: number, 
+    manager: EntityManager = this.manager) {
+    const product = await manager.createQueryBuilder( 
       Product, "products").
       where( "id = :id").
       setParameters( { id }).
       getOne();
     product.quantity += delta;
-    return await this.manager.save( Product, product);
+    return await manager.save( Product, product);
+  }
+
+  findManyByCode( codes: String[]) {
+    return this.manager.createQueryBuilder( Product, "products")
+      .where( "code IN (:...codes)")
+      .setParameters( { codes })
+      .getMany();
   }
 
   private findByCode( code: String) {
@@ -79,6 +86,14 @@ export default class ProductRepository extends AbstractRepository<Product> {
 
   private async updateRecord( id: number, data: Object) {
     return await this.manager.update( Product, id, data);
+  }
+
+  async productsOrdersAreValid( products_dict: Object[]) {
+    const db_products = await this.find();
+    const db_product_codes = db_products.map( product => product.code);
+    return products_dict.every( product => 
+      db_product_codes.find( code => code == product["code"])
+    ) && products_dict.every( product => product["quantity"] > 0);
   }
 
   private async catchErrors( promise: Promise<any>) : Promise<Object> {

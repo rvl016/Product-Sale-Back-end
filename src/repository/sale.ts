@@ -43,13 +43,13 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   async update( id: number, data: Object) {
-    if (! this.hasProducts( data["products"]))
-      return { error: "A sale should have at least one Product!" }
+    if (! await this.productsExistAndAreValid( data["products"]))
+      return { error: "Products data are invalid!" }
     const sale = await this.getFullyJoinedSale( id);
     if (! sale)
       return null;
     try {
-      return await this.modifySale( id, data, sale);
+      return await this.modifySale( sale, data);
     } catch (error) {
       return { error };
     }
@@ -63,20 +63,22 @@ export default class SaleRepository extends AbstractRepository<Sale> {
   }
 
   @Transaction()
-  private async modifySale( id: number, data: Object, sale: Sale,
+  private async modifySale( sale: Sale, data: Object,
     @TransactionManager() manager?: EntityManager) {
-    await this.revertOrdersRecordsFrom( sale);
-    await this.makeOrderRecords( data["products"], id);
-    manager.merge( Sale, sale, data);
-    return await manager.save( sale);
+    await this.revertOrdersRecordsFrom( sale, manager);
+    await this.makeOrderRecords( data["products"], sale.id, manager);
+    const sale_price = await this.getTotalValue( sale, manager)["sum"];
+    const customer_cpf = data["customer_cpf"];
+    return await manager.update( Sale, sale.id, 
+      { sale_price, customer_cpf });
   }
 
   @Transaction()
   private async makeSale( data: Object, 
     @TransactionManager() manager?: EntityManager) {
-    const sale = await this.makeSaleRecord( data);
-    await this.makeOrderRecords( data["products"], sale.id);
-    await this.setTotalValue( sale);
+    const sale = await this.makeSaleRecord( data, manager);
+    await this.makeOrderRecords( data["products"], sale.id, manager);
+    await this.setTotalValue( sale, manager);
   }
 
   private async makeSaleRecord( data: Object, 
@@ -91,15 +93,16 @@ export default class SaleRepository extends AbstractRepository<Sale> {
     const orderRepository = getCustomRepository( OrderRepository);
     for (const order of sale.orders) {
       await productRepository.changeQuantity( order.product_id['id'], 
-        order.quantity);
-      await orderRepository.delete( order.id);
+        order.quantity, manager);
+      await orderRepository.delete( order.id, manager);
     }
   }
 
-  private async makeOrderRecords( products_data: Object[], sale_id: number) {
+  private async makeOrderRecords( products_data: Object[], 
+    sale_id: number, manager: EntityManager = this.manager) {
     const orderRepository = getCustomRepository( OrderRepository);
     return await orderRepository.createOrdersAndUpdateProducts(
-      products_data, sale_id);
+      products_data, sale_id, manager);
   }
 
   private getFullyJoinedSale( id: number) {
@@ -111,32 +114,26 @@ export default class SaleRepository extends AbstractRepository<Sale> {
       getOne()
   }
 
-  private async setTotalValue( sale: Sale) {
-    const total_value = await this.manager.createQueryBuilder( Order, "orders")
+  private async setTotalValue( sale: Sale, 
+    manager: EntityManager = this.manager) {
+    const total_value = await this.getTotalValue( sale, manager);
+    await manager.update( Sale, sale, { 'sale_price': total_value.sum });
+  }
+
+  private async getTotalValue( sale: Sale, 
+    manager: EntityManager = this.manager) {
+    return await manager.createQueryBuilder( Order, "orders")
       .select( "SUM( orders.quantity * products.price)")
       .innerJoin( "orders.sale_id", "sales")
       .innerJoin( "orders.product_id", "products")
       .where( "sales.id = :sale_id")
       .setParameter( 'sale_id', sale.id)
       .getRawOne()
-    await this.manager.update( Sale, sale, 
-      { 'sale_price': total_value.sum });
   }
 
   private async productsExistAndAreValid( products_data: Object[]) {
-    if (! this.hasProducts( products_data) 
-      || await this.productsAreValid( products_data))
-      return false;
-    return true;
-  }
-
-  private async productsAreValid( products_dict: Object[]) {
-    const productRepository = getCustomRepository( ProductRepository);
-    const db_products = await productRepository.find();
-    const db_product_codes = db_products.map( product => product.code);
-    return products_dict.map( product => product['code']).some( product => {
-      db_product_codes.find( code => code === product);
-    });
+    return this.hasProducts( products_data) && await getCustomRepository(
+      ProductRepository).productsOrdersAreValid( products_data);
   }
 
   private hasProducts( products: any) {
